@@ -76,29 +76,36 @@ test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device\n")
 
-layer_size = 16
+layer_size = 8
+num_layers = 1
+activation = nn.Tanh()  # nn.Tanh(), nn.ReLU(), nn.Sigmoid()
+
+model_info = {'layer_size': layer_size, 'num_layers': num_layers, 'activation': activation}
 
 class NeuralNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, layer_size=32, num_layers=2, activation=nn.Tanh()):
         super().__init__()
-        self.flatten = nn.Flatten()
-        self.linear_tanh_stack = nn.Sequential(
-            nn.Linear(1, layer_size),
-            nn.Tanh(),
-            nn.Linear(layer_size, 1)
-        )
+        layers = [nn.Linear(1, layer_size), activation]
+        for _ in range(num_layers-1):
+            layers.append(nn.Linear(layer_size, layer_size))
+            layers.append(activation)
+        layers.append(nn.Linear(layer_size, 1))
+
+        self.network = nn.Sequential(*layers)
 
     def forward(self, x):
-        return self.linear_tanh_stack(x)
+        return self.network(x)
 
-model = NeuralNetwork().to(device)
+model = NeuralNetwork(layer_size=layer_size,
+                      num_layers=num_layers,
+                      activation=activation).to(device)
 plot_model_pred(model, X, X_scale, Y, Y_std, Y_mean, device)
 
 # Model training parameters
-epochs = 250
+epochs = 500
 loss_fn = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-snapshot_every = 5
+snapshot_every = 10
 progress_every = 20
 
 snapshots = []
@@ -117,6 +124,14 @@ for epoch in range(epochs):
 snapshots = np.array(snapshots)
 snapshot_epochs = np.array(snapshot_epochs)
 
-plot_model_pred(model, X, X_scale, Y, Y_std, Y_mean, device)
+## See final model fit
+#plot_model_pred(model, X, X_scale, Y, Y_std, Y_mean, device)
+
+## See 3-dimensional training surface
 #plot_training_surface(X, Y, snapshots, snapshot_epochs)
-plot_interactive_snapshots(X, Y, snapshots, snapshot_epochs)
+
+## See 2-dimensional fit with epoch slider
+#plot_interactive_snapshots(X, Y, snapshots, snapshot_epochs)
+
+# Export gif of model fit
+#plot_animated_gif(snapshots, snapshot_epochs, X, Y, model_info, filename=f"poly_approx1.gif", fps=15)

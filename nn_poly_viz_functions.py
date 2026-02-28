@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from matplotlib.animation import FuncAnimation, PillowWriter
 
 
 def plot_model_pred(model, x, x_scale, y, y_std, y_mean, device):
@@ -93,3 +94,32 @@ def plot_interactive_snapshots(x_vis, y_true, snapshots, snapshot_epochs):
         )
 
     fig.show()
+
+
+def plot_animated_gif(snapshots, snapshot_epochs, x_vis, y_true, model_info, filename="training.gif", fps=15):
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(x_vis, y_true, 'r--', label='True function')
+    line, = ax.plot(x_vis, snapshots[0], 'b-', label='Model')
+    epoch_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
+
+    fig.suptitle('Model fit across training epochs', fontsize=16)
+
+    # Model information in title
+    ax.set_title(f"Layers: {model_info['num_layers']} | Nodes: {model_info['layer_size']} | Activation: {model_info['activation']}",
+                 fontsize=9)
+    ax.set_ylim(y_true.min() - 10, y_true.max() + 10)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+
+    ax.legend()
+
+    def update(frame):
+        line.set_ydata(snapshots[frame])
+        epoch_text.set_text(f'Epoch: {snapshot_epochs[frame]}')
+        return line, epoch_text
+
+    ani = FuncAnimation(fig, update, frames=len(snapshots), interval=1000//fps, blit=True)
+    ani.save(filename, writer=PillowWriter(fps=fps))
+    plt.close()
+    print(f"Saved to {filename}")
