@@ -29,7 +29,7 @@ def snapshot_callback(model, device, x_vis_scale, y_std, y_mean, epoch, snapshot
     snapshot_epochs.append(epoch)
     model.train()
 
-def plot_training_surface(x_vis, y_true, snapshots, snapshot_epochs):
+def plot_training_surface(x_vis, y_true, snapshots, snapshot_epochs, model_info=None):
     # Build meshgrid for surface plot
     X, E = np.meshgrid(x_vis, snapshot_epochs)
     # snapshots is already (n_epochs, n_x) so it maps directly
@@ -52,14 +52,14 @@ def plot_training_surface(x_vis, y_true, snapshots, snapshot_epochs):
     plt.tight_layout()
     plt.show()
 
-def plot_interactive_snapshots(x_vis, y_true, snapshots, snapshot_epochs):
+def plot_interactive_snapshots(x_vis, y_true, snapshots, snapshot_epochs, model_info):
     # Build one frame per snapshot
     frames = []
     for i, epoch in enumerate(snapshot_epochs):
         frames.append(go.Frame(
             data=[
                 go.Scatter(x=x_vis, y=snapshots[i], mode='lines', name='Model', line=dict(color='blue')),
-                go.Scatter(x=x_vis, y=y_true, mode='lines', name='True function', line=dict(color='red', dash='dash'))
+                go.Scatter(x=x_vis, y=y_true, mode='lines', name=f'$f(x) = {model_info['expr']}$', line=dict(color='red', dash='dash'))
             ],
             name=str(epoch)
         ))
@@ -68,7 +68,7 @@ def plot_interactive_snapshots(x_vis, y_true, snapshots, snapshot_epochs):
     fig = go.Figure(
         data=[
             go.Scatter(x=x_vis, y=snapshots[0], mode='lines', name='Model', line=dict(color='blue')),
-            go.Scatter(x=x_vis, y=y_true, mode='lines', name='True function', line=dict(color='red', dash='dash'))
+            go.Scatter(x=x_vis, y=y_true, mode='lines', name=f'$f(x) = {model_info['expr']}$', line=dict(color='red', dash='dash'))
         ],
         frames=frames
     )
@@ -83,14 +83,14 @@ def plot_interactive_snapshots(x_vis, y_true, snapshots, snapshot_epochs):
         ))
 
     fig.update_layout(
-        title='Model fit across training epochs',
+        title=f'Model fit across training epochs | Layers: {model_info['num_layers']} | Nodes: {model_info['layer_size']} | Activation: {model_info['activation']}',
         xaxis_title='x',
         yaxis_title='y',
         sliders=[dict(
             currentvalue=dict(prefix='Epoch: '),
             steps=steps
         )],
-        yaxis=dict(range=[y_true.min() - 10, y_true.max() + 10])  # fix y axis so curve doesn't jump around
+        yaxis=dict(range=[y_true.min() - (y_true.max() - y_true.min()) * 0.1, y_true.max() + (y_true.max() - y_true.min()) * 0.1])  # fix y axis so curve doesn't jump around
         )
 
     fig.show()
@@ -99,7 +99,7 @@ def plot_interactive_snapshots(x_vis, y_true, snapshots, snapshot_epochs):
 def plot_animated_gif(snapshots, snapshot_epochs, x_vis, y_true, model_info, filename="training.gif", fps=15):
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(x_vis, y_true, 'r--', label='True function')
+    ax.plot(x_vis, y_true, 'r--', label=f'$f(x) = {model_info['expr']}$')
     line, = ax.plot(x_vis, snapshots[0], 'b-', label='Model')
     epoch_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
 
@@ -108,7 +108,8 @@ def plot_animated_gif(snapshots, snapshot_epochs, x_vis, y_true, model_info, fil
     # Model information in title
     ax.set_title(f"Layers: {model_info['num_layers']} | Nodes: {model_info['layer_size']} | Activation: {model_info['activation']}",
                  fontsize=9)
-    ax.set_ylim(y_true.min() - 10, y_true.max() + 10)
+    ax.set_ylim(y_true.min() - (y_true.max() - y_true.min()) * 0.1,
+                y_true.max() + (y_true.max() - y_true.min()) * 0.1)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
 

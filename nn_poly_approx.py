@@ -1,12 +1,12 @@
-# %%
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, random_split
 import numpy as np
 import matplotlib.pyplot as plt
+import sympy as sp
 
 from nn_poly_viz_functions import *
-# %%
+
 class PolynomialDataset(Dataset):
     def __init__(self, x, y):
         self.x = torch.tensor(x, dtype=torch.float32).unsqueeze(1)
@@ -56,8 +56,15 @@ def test(model, loader, loss_fn, device):
     return total_loss / len(loader)
 
 X = np.linspace(-10, 10, 1000).astype(np.float32)
-# WRITE POLYNOMIAL HERE
-Y = .5*X**3 + 0.75*X**2 + 3*X
+x = sp.Symbol('x')
+
+## WRITE POLYNOMIAL HERE
+expr = -0.5*x**4 + 25*x**2 + 0.5*x
+
+latex_str = sp.latex(expr)
+print(f"Training on polynomial: {latex_str}")
+f = sp.lambdify(x, expr, "numpy")
+Y = f(X)
 
 X_mean, X_std = X.mean(), X.std()
 Y_mean, Y_std = Y.mean(), Y.std()
@@ -80,7 +87,7 @@ layer_size = 8
 num_layers = 1
 activation = nn.Tanh()  # nn.Tanh(), nn.ReLU(), nn.Sigmoid()
 
-model_info = {'layer_size': layer_size, 'num_layers': num_layers, 'activation': activation}
+model_info = {'layer_size': layer_size, 'num_layers': num_layers, 'activation': activation, 'expr': latex_str}
 
 class NeuralNetwork(nn.Module):
     def __init__(self, layer_size=32, num_layers=2, activation=nn.Tanh()):
@@ -99,19 +106,19 @@ class NeuralNetwork(nn.Module):
 model = NeuralNetwork(layer_size=layer_size,
                       num_layers=num_layers,
                       activation=activation).to(device)
-plot_model_pred(model, X, X_scale, Y, Y_std, Y_mean, device)
+#plot_model_pred(model, X, X_scale, Y, Y_std, Y_mean, device)
 
 # Model training parameters
-epochs = 500
+epochs = 1000
 loss_fn = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 snapshot_every = 10
-progress_every = 20
+progress_every = 50
 
 snapshots = []
 snapshot_epochs = []
 
-for epoch in range(epochs):
+for epoch in range(epochs+1):
     train_loss = train(model, train_loader, optimizer, loss_fn, device)
     test_loss = test(model, test_loader, loss_fn, device)
 
@@ -131,7 +138,7 @@ snapshot_epochs = np.array(snapshot_epochs)
 #plot_training_surface(X, Y, snapshots, snapshot_epochs)
 
 ## See 2-dimensional fit with epoch slider
-#plot_interactive_snapshots(X, Y, snapshots, snapshot_epochs)
+plot_interactive_snapshots(X, Y, snapshots, snapshot_epochs, model_info)
 
-# Export gif of model fit
-#plot_animated_gif(snapshots, snapshot_epochs, X, Y, model_info, filename=f"poly_approx1.gif", fps=15)
+## Export gif of model fit
+#plot_animated_gif(snapshots, snapshot_epochs, X, Y, model_info, filename=f"Visualizations/poly_approx4.gif", fps=15)
