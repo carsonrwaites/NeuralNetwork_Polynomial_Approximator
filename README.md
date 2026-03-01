@@ -23,13 +23,15 @@ _Future Plans: (1) Generate a few more test cases, both for very simple polynomi
 ## Technical Approach
 ### Architecture
 
+Use the file `nn_poly_approx.py` as the main file for training neural networks on polynomials and exporting visualizations.
+
 A simple feedforward neural network is trained on synthetically generated data drawn from a user-specified polynomial. The polynomial is defined symbolically using SymPy. The network takes a single scalar input $x$ and produces a single scalar output $\hat{y}$, learning to map the input domain to the polynomial's range.
 
 Training data is generated as linearly spaced points over a specified interval, normalized, and split into training and test sets. The model is trained using mini-batch gradient descent with the Adam optimizer and MSE loss. At regular intervals during training, snapshots of the model's predictions are captured via a callback function, which are later used to produce visualizations of the training process.
 
 The `NeuralNetwork` class accepts `num_layers`, `layer_size`, and `activation` as constructor arguments, building the layer stack programmatically. This makes it straightforward to sweep over architectural configurations without modifying the class itself, a natural fit for experiments studying how network capacity relates to polynomial complexity. 
 
-_Future Plans: I'd like to implement these arguments, number of epochs, and the polynomial specification itself as an input file, so the main approximation code itself won't need to be changed._
+_Future Plans: I'd like to implement these arguments, number of epochs, and the polynomial specification itself as an input file, so the main approximation code itself won't need to be changed. Update: Moved the specifications to the beginning of the file, so the file is at least easier to use in the meantime. I may still add the input file._
 
 ### Visualizations
 
