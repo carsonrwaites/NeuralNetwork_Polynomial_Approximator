@@ -4,6 +4,21 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import numpy as np
 import matplotlib.pyplot as plt
 import sympy as sp
+x = sp.Symbol('x')
+
+# Polynomial to learn
+expr = x**7 - 14*x**5 + 4*x**3 + 10*x**2 - 7*x + 3
+
+# Model parameters
+layer_size = 32
+num_layers = 3
+activation = nn.Tanh()  # nn.Tanh(), nn.ReLU(), nn.Sigmoid()
+
+# Model training parameters
+epochs = 3000  # Maximum of epochs to train for
+stop_loss = 0.0001  # What MSE to break training loop at
+stag_max = 30  # How many epochs to let run without lowering test loss
+
 
 from nn_poly_viz_functions import *
 
@@ -55,12 +70,7 @@ def test(model, loader, loss_fn, device):
             total_loss += loss.item()
     return total_loss / len(loader)
 
-X = np.linspace(-10, 10, 1000).astype(np.float32)
-x = sp.Symbol('x')
-
-## WRITE POLYNOMIAL HERE
-expr = -0.5*x**4 + 25*x**2 + 0.5*x
-
+X = np.linspace(-4, 4, 1000).astype(np.float32)
 latex_str = sp.latex(expr)
 print(f"Training on polynomial: {latex_str}")
 f = sp.lambdify(x, expr, "numpy")
@@ -68,7 +78,6 @@ Y = f(X)
 
 X_mean, X_std = X.mean(), X.std()
 Y_mean, Y_std = Y.mean(), Y.std()
-
 X_scale = (X - X_mean) / X_std
 Y_scale = (Y - Y_mean) / Y_std
 
@@ -82,10 +91,6 @@ test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device\n")
-
-layer_size = 8
-num_layers = 1
-activation = nn.Tanh()  # nn.Tanh(), nn.ReLU(), nn.Sigmoid()
 
 model_info = {'layer_size': layer_size, 'num_layers': num_layers, 'activation': activation, 'expr': latex_str}
 
@@ -106,10 +111,7 @@ class NeuralNetwork(nn.Module):
 model = NeuralNetwork(layer_size=layer_size,
                       num_layers=num_layers,
                       activation=activation).to(device)
-#plot_model_pred(model, X, X_scale, Y, Y_std, Y_mean, device)
 
-# Model training parameters
-epochs = 1000
 loss_fn = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 snapshot_every = 10
@@ -117,6 +119,9 @@ progress_every = 50
 
 snapshots = []
 snapshot_epochs = []
+
+min_loss = 1000  # To keep track of minimum loss
+stag_counter = 0  # To keep track of plateauing test loss
 
 for epoch in range(epochs+1):
     train_loss = train(model, train_loader, optimizer, loss_fn, device)
@@ -127,6 +132,16 @@ for epoch in range(epochs+1):
 
     if epoch % progress_every == 0:
         print(f"Epoch {epoch}: train loss = {train_loss:.6f}, test loss = {test_loss:.6f}")
+
+    if test_loss < min_loss:
+        min_loss = test_loss
+        stag_counter = 0
+    else:
+        stag_counter += 1
+
+    if min_loss < stop_loss or stag_counter >= stag_max:
+        snapshot_callback(model, device, X_scale, Y_std, Y_mean, epoch, snapshots, snapshot_epochs)
+        break
 
 snapshots = np.array(snapshots)
 snapshot_epochs = np.array(snapshot_epochs)
