@@ -3,24 +3,23 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset, random_split
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import sympy as sp
+from nn_poly_viz_functions import *
 x = sp.Symbol('x')
 
 # Polynomial to learn
-expr = x**7 - 14*x**5 + 4*x**3 + 10*x**2 - 7*x + 3
+expr =  x**6 - 12*x**4 + 3*x**3 + 20*x**2 - 5*x - 8
 
 # Model parameters
-layer_size = 32
-num_layers = 3
+layer_size = 12
+num_layers = 2
 activation = nn.Tanh()  # nn.Tanh(), nn.ReLU(), nn.Sigmoid()
 
 # Model training parameters
 epochs = 3000  # Maximum of epochs to train for
 stop_loss = 0.0001  # What MSE to break training loop at
 stag_max = 30  # How many epochs to let run without lowering test loss
-
-
-from nn_poly_viz_functions import *
 
 class PolynomialDataset(Dataset):
     def __init__(self, x, y):
@@ -117,8 +116,8 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 snapshot_every = 10
 progress_every = 50
 
-snapshots = []
-snapshot_epochs = []
+pred_snapshots = []
+train_info_snapshots = [[], [], []]  # epoch number, train loss, test loss
 
 min_loss = 1000  # To keep track of minimum loss
 stag_counter = 0  # To keep track of plateauing test loss
@@ -126,9 +125,6 @@ stag_counter = 0  # To keep track of plateauing test loss
 for epoch in range(epochs+1):
     train_loss = train(model, train_loader, optimizer, loss_fn, device)
     test_loss = test(model, test_loader, loss_fn, device)
-
-    if epoch % snapshot_every == 0:
-        snapshot_callback(model, device, X_scale, Y_std, Y_mean, epoch, snapshots, snapshot_epochs)
 
     if epoch % progress_every == 0:
         print(f"Epoch {epoch}: train loss = {train_loss:.6f}, test loss = {test_loss:.6f}")
@@ -140,20 +136,33 @@ for epoch in range(epochs+1):
         stag_counter += 1
 
     if min_loss < stop_loss or stag_counter >= stag_max:
-        snapshot_callback(model, device, X_scale, Y_std, Y_mean, epoch, snapshots, snapshot_epochs)
+        snapshot_callback(model, device, X_scale, Y_std, Y_mean, pred_snapshots)
+        train_info_snapshots[0].append(epoch)
+        train_info_snapshots[1].append(train_loss)
+        train_info_snapshots[2].append(test_loss)
         break
 
-snapshots = np.array(snapshots)
-snapshot_epochs = np.array(snapshot_epochs)
+    # Moved this after the stopping criteria to avoid duplicate snapshots if terminating on a x10
+    if epoch % snapshot_every == 0:
+        snapshot_callback(model, device, X_scale, Y_std, Y_mean, pred_snapshots)
+        train_info_snapshots[0].append(epoch)
+        train_info_snapshots[1].append(train_loss)
+        train_info_snapshots[2].append(test_loss)
+
+pred_snapshots = np.array(pred_snapshots)
+train_info_snapshots = np.array(train_info_snapshots)
+
+pd.DataFrame(train_info_snapshots).to_csv('train_info_snapshots.csv')
+pd.DataFrame(pred_snapshots).to_csv('pred_snapshots.csv')
 
 ## See final model fit
 #plot_model_pred(model, X, X_scale, Y, Y_std, Y_mean, device)
 
 ## See 3-dimensional training surface
-#plot_training_surface(X, Y, snapshots, snapshot_epochs)
+#plot_training_surface(X, Y, pred_snapshots, train_info_snapshots)
 
 ## See 2-dimensional fit with epoch slider
-plot_interactive_snapshots(X, Y, snapshots, snapshot_epochs, model_info)
+plot_interactive_snapshots(X, Y, pred_snapshots, train_info_snapshots, model_info)
 
 ## Export gif of model fit
-#plot_animated_gif(snapshots, snapshot_epochs, X, Y, model_info, filename=f"Visualizations/poly_approx4.gif", fps=15)
+#plot_animated_gif(pred_snapshots, train_info_snapshots, X, Y, model_info, filename=f"Visualizations/poly_approx4.gif", fps=15)
