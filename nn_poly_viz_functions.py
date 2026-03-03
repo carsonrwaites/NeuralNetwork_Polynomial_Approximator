@@ -51,7 +51,7 @@ def plot_training_surface(x_vis, y_true, snapshots, snapshot_epochs, model_info=
     plt.tight_layout()
     plt.show()
 
-def plot_interactive_snapshots_old(x_vis, y_true, snapshots, snapshot_epochs, model_info):
+def plot_interactive_snapshots_noloss(x_vis, y_true, snapshots, snapshot_epochs, model_info):
     # Build one frame per snapshot
     frames = []
     snapshot_epochs = snapshot_epochs[0]
